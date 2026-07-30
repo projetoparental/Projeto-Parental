@@ -78,7 +78,12 @@ function Remover-Silencio {
     param([string]$InputFile, [string]$OutputFile)
 
     Write-Host "`nAnalisando silêncios..." -ForegroundColor Cyan
-    $log = & ffmpeg -fflags +igndts -err_detect ignore_err -i "$InputFile" -af "silencedetect=noise=-30dB:d=0.6" -f null - -v warning 2>&1 | Out-String -ErrorAction SilentlyContinue
+
+    $arquivoTemp = Join-Path $PastaTemp "temp-remux.mp4"
+    Write-Host "Preparando vídeo para análise..." -ForegroundColor Cyan
+    & ffmpeg -y -i "$InputFile" -c copy -bsf:a aac_adtstoasc "$arquivoTemp" 2>&1 | Out-Null
+
+    $log = & ffmpeg -i "$arquivoTemp" -af "silencedetect=noise=-30dB:d=0.6" -f null - 2>&1 | Out-String -ErrorAction SilentlyContinue
 
     $starts = [regex]::Matches($log, "silence_start:\s*([\d\.]+)") | ForEach-Object { [double]$_.Groups[1].Value }
     $ends = [regex]::Matches($log, "silence_end:\s*([\d\.]+)") | ForEach-Object { [double]$_.Groups[1].Value }
@@ -113,6 +118,8 @@ function Remover-Silencio {
 
     Cortar-Trechos -InputFile $InputFile -OutputFile $OutputFile -Trechos $manter
     Write-Host "Silêncios removidos: $($silencios.Count) trechos cortados." -ForegroundColor Green
+
+    Remove-Item $arquivoTemp -Force -ErrorAction SilentlyContinue
 }
 
 function Remover-Cortes-Manuais {
