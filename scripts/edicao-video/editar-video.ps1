@@ -1,4 +1,4 @@
-# Pipeline de edição de vídeo para o Projeto Parental.
+﻿# Pipeline de edição de vídeo para o Projeto Parental.
 # Fluxo: seleciona vídeo em Downloads -> remove silêncios -> transcreve ->
 # você marca falas erradas para cortar -> corta -> redimensiona para vertical ->
 # gera legenda final -> pergunta estilo -> grava legenda queimada no vídeo.
@@ -7,7 +7,7 @@
 
 $ErrorActionPreference = "Stop"
 
-$PastaDownloads = "$env:USERPROFILE\Downloads"
+$PastaDownloads = (New-Object -ComObject Shell.Application).NameSpace('shell:Downloads').Self.Path
 $PastaProjeto = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $PastaExports = Join-Path $PastaProjeto "conteudo\reels\exports"
 $PastaTemp = Join-Path $PastaProjeto "conteudo\reels\_temp"

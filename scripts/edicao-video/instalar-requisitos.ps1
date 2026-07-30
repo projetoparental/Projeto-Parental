@@ -1,4 +1,4 @@
-# Instala tudo que o editar-video.ps1 precisa: FFmpeg, Python e faster-whisper.
+﻿# Instala tudo que o editar-video.ps1 precisa: FFmpeg, Python e faster-whisper.
 # Rode este script UMA VEZ antes de usar o editar-video.ps1 pela primeira vez.
 
 Write-Host "=== Instalando requisitos para edição de vídeo ===" -ForegroundColor Magenta
