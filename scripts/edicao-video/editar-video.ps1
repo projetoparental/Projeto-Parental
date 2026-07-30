@@ -44,7 +44,7 @@ function Converter-Tempo {
 
 function Obter-Duracao {
     param([string]$Arquivo)
-    $texto = & ffprobe -fflags +igndts -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$Arquivo"
+    $texto = & ffprobe -fflags +igndts -err_detect ignore_err -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$Arquivo"
     return [double]$texto
 }
 
@@ -71,14 +71,14 @@ function Cortar-Trechos {
     $concat = ($mapas -join "") + "concat=n=$($Trechos.Count):v=1:a=1[outv][outa]"
     $filterComplex = ($filtros -join ";") + ";" + $concat
 
-    & ffmpeg -fflags +igndts -y -i "$InputFile" -filter_complex $filterComplex -map "[outv]" -map "[outa]" -c:v libx264 -crf 18 -preset fast -c:a aac "$OutputFile"
+    & ffmpeg -fflags +igndts -err_detect ignore_err -y -i "$InputFile" -filter_complex $filterComplex -map "[outv]" -map "[outa]" -c:v libx264 -crf 18 -preset fast -c:a aac "$OutputFile"
 }
 
 function Remover-Silencio {
     param([string]$InputFile, [string]$OutputFile)
 
     Write-Host "`nAnalisando silêncios..." -ForegroundColor Cyan
-    $log = & ffmpeg -fflags +igndts -i "$InputFile" -af "silencedetect=noise=-30dB:d=0.6" -f null - -v warning 2>&1 | Out-String -ErrorAction SilentlyContinue
+    $log = & ffmpeg -fflags +igndts -err_detect ignore_err -i "$InputFile" -af "silencedetect=noise=-30dB:d=0.6" -f null - -v warning 2>&1 | Out-String -ErrorAction SilentlyContinue
 
     $starts = [regex]::Matches($log, "silence_start:\s*([\d\.]+)") | ForEach-Object { [double]$_.Groups[1].Value }
     $ends = [regex]::Matches($log, "silence_end:\s*([\d\.]+)") | ForEach-Object { [double]$_.Groups[1].Value }
@@ -166,7 +166,7 @@ function Redimensionar-Vertical {
         $filtro = "split[original][fundo];[fundo]scale=1080:1920,boxblur=20:5[fundoblur];[original]scale=1080:-1[frente];[fundoblur][frente]overlay=(W-w)/2:(H-h)/2"
     }
 
-    & ffmpeg -fflags +igndts -y -i "$InputFile" -vf $filtro -c:a copy "$OutputFile"
+    & ffmpeg -fflags +igndts -err_detect ignore_err -y -i "$InputFile" -vf $filtro -c:a copy "$OutputFile"
 }
 
 function Gerar-Transcricao {
@@ -247,7 +247,7 @@ function Gravar-Legenda {
     $srtEscapado = ($Srt -replace '\\', '/') -replace ':', '\:'
     $forceStyle = "FontName=$($Estilo.Fonte),FontSize=$($Estilo.Tamanho),PrimaryColour=$($Estilo.CorTexto),OutlineColour=$($Estilo.CorContorno),BorderStyle=1,Outline=$($Estilo.Contorno),Alignment=$($Estilo.Alinhamento),MarginV=$($Estilo.MargemV)"
 
-    & ffmpeg -fflags +igndts -y -i "$InputFile" -vf "subtitles='$srtEscapado':force_style='$forceStyle'" -c:a copy "$OutputFile"
+    & ffmpeg -fflags +igndts -err_detect ignore_err -y -i "$InputFile" -vf "subtitles='$srtEscapado':force_style='$forceStyle'" -c:a copy "$OutputFile"
 }
 
 # ---------------------------------------------------------------------------
