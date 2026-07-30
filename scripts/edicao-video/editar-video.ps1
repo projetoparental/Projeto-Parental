@@ -51,11 +51,11 @@ function Obter-Duracao {
 function Cortar-Trechos {
     # Recebe a lista de trechos que devem ser MANTIDOS e remonta o vídeo só com eles,
     # preservando sincronia de áudio e vídeo via trim + concat.
-    param([string]$Input, [string]$Output, [array]$Trechos)
+    param([string]$InputFile, [string]$OutputFile, [array]$Trechos)
 
     if ($Trechos.Count -eq 0) {
         Write-Host "Nada para cortar, copiando vídeo sem alterações." -ForegroundColor Yellow
-        Copy-Item $Input $Output
+        Copy-Item $InputFile $OutputFile
         return
     }
 
@@ -71,14 +71,14 @@ function Cortar-Trechos {
     $concat = ($mapas -join "") + "concat=n=$($Trechos.Count):v=1:a=1[outv][outa]"
     $filterComplex = ($filtros -join ";") + ";" + $concat
 
-    & ffmpeg -y -i "$Input" -filter_complex $filterComplex -map "[outv]" -map "[outa]" -c:v libx264 -crf 18 -preset fast -c:a aac "$Output"
+    & ffmpeg -y -i "$InputFile" -filter_complex $filterComplex -map "[outv]" -map "[outa]" -c:v libx264 -crf 18 -preset fast -c:a aac "$OutputFile"
 }
 
 function Remover-Silencio {
-    param([string]$Input, [string]$Output)
+    param([string]$InputFile, [string]$OutputFile)
 
     Write-Host "`nAnalisando silêncios..." -ForegroundColor Cyan
-    $log = & ffmpeg -i "$Input" -af "silencedetect=noise=-30dB:d=0.6" -f null - -v warning 2>&1 | Out-String -ErrorAction SilentlyContinue
+    $log = & ffmpeg -i "$InputFile" -af "silencedetect=noise=-30dB:d=0.6" -f null - -v warning 2>&1 | Out-String -ErrorAction SilentlyContinue
 
     $starts = [regex]::Matches($log, "silence_start:\s*([\d\.]+)") | ForEach-Object { [double]$_.Groups[1].Value }
     $ends = [regex]::Matches($log, "silence_end:\s*([\d\.]+)") | ForEach-Object { [double]$_.Groups[1].Value }
@@ -92,11 +92,11 @@ function Remover-Silencio {
 
     if ($silencios.Count -eq 0) {
         Write-Host "Nenhum silêncio significativo encontrado." -ForegroundColor Yellow
-        Copy-Item $Input $Output
+        Copy-Item $InputFile $OutputFile
         return
     }
 
-    $duracaoTotal = Obter-Duracao -Arquivo $Input
+    $duracaoTotal = Obter-Duracao -Arquivo $InputFile
     $folga = 0.15
     $manter = @()
     $cursor = 0.0
@@ -111,22 +111,22 @@ function Remover-Silencio {
         $manter += [PSCustomObject]@{ Inicio = $cursor; Fim = $duracaoTotal }
     }
 
-    Cortar-Trechos -Input $Input -Output $Output -Trechos $manter
+    Cortar-Trechos -InputFile $InputFile -OutputFile $OutputFile -Trechos $manter
     Write-Host "Silêncios removidos: $($silencios.Count) trechos cortados." -ForegroundColor Green
 }
 
 function Remover-Cortes-Manuais {
-    param([string]$Input, [string]$Output, [string]$ArquivoCortes)
+    param([string]$InputFile, [string]$OutputFile, [string]$ArquivoCortes)
 
     $linhasValidas = Get-Content $ArquivoCortes | Where-Object { $_.Trim() -ne "" -and -not $_.Trim().StartsWith("#") }
 
     if (-not $linhasValidas -or $linhasValidas.Count -eq 0) {
         Write-Host "Nenhum corte manual informado. Prosseguindo sem alterações." -ForegroundColor Yellow
-        Copy-Item $Input $Output
+        Copy-Item $InputFile $OutputFile
         return
     }
 
-    $duracaoTotal = Obter-Duracao -Arquivo $Input
+    $duracaoTotal = Obter-Duracao -Arquivo $InputFile
 
     $cortes = $linhasValidas | ForEach-Object {
         $p = $_.Split("-")
@@ -148,12 +148,12 @@ function Remover-Cortes-Manuais {
         $manter += [PSCustomObject]@{ Inicio = $cursor; Fim = $duracaoTotal }
     }
 
-    Cortar-Trechos -Input $Input -Output $Output -Trechos $manter
+    Cortar-Trechos -InputFile $InputFile -OutputFile $OutputFile -Trechos $manter
     Write-Host "Cortes manuais aplicados: $($cortes.Count) trechos removidos." -ForegroundColor Green
 }
 
 function Redimensionar-Vertical {
-    param([string]$Input, [string]$Output)
+    param([string]$InputFile, [string]$OutputFile)
 
     Write-Host "`nComo prefere o formato vertical (9:16)?" -ForegroundColor Cyan
     Write-Host "[1] Cortar as bordas (crop) - preenche a tela toda, pode cortar partes da imagem"
@@ -166,14 +166,14 @@ function Redimensionar-Vertical {
         $filtro = "split[original][fundo];[fundo]scale=1080:1920,boxblur=20:5[fundoblur];[original]scale=1080:-1[frente];[fundoblur][frente]overlay=(W-w)/2:(H-h)/2"
     }
 
-    & ffmpeg -y -i "$Input" -vf $filtro -c:a copy "$Output"
+    & ffmpeg -y -i "$InputFile" -vf $filtro -c:a copy "$OutputFile"
 }
 
 function Gerar-Transcricao {
-    param([string]$Input, [string]$SaidaSrt, [string]$SaidaTxt)
+    param([string]$InputFile, [string]$SaidaSrt, [string]$SaidaTxt)
 
     Write-Host "`nTranscrevendo áudio (pode demorar alguns minutos, dependendo da duração do vídeo)..." -ForegroundColor Cyan
-    & python "$PSScriptRoot\transcrever.py" "$Input" "$SaidaSrt" "$SaidaTxt"
+    & python "$PSScriptRoot\transcrever.py" "$InputFile" "$SaidaSrt" "$SaidaTxt"
 }
 
 function Perguntar-EstiloLegenda {
@@ -242,12 +242,12 @@ function Perguntar-EstiloLegenda {
 }
 
 function Gravar-Legenda {
-    param([string]$Input, [string]$Srt, [string]$Output, [hashtable]$Estilo)
+    param([string]$InputFile, [string]$Srt, [string]$OutputFile, [hashtable]$Estilo)
 
     $srtEscapado = ($Srt -replace '\\', '/') -replace ':', '\:'
     $forceStyle = "FontName=$($Estilo.Fonte),FontSize=$($Estilo.Tamanho),PrimaryColour=$($Estilo.CorTexto),OutlineColour=$($Estilo.CorContorno),BorderStyle=1,Outline=$($Estilo.Contorno),Alignment=$($Estilo.Alinhamento),MarginV=$($Estilo.MargemV)"
 
-    & ffmpeg -y -i "$Input" -vf "subtitles='$srtEscapado':force_style='$forceStyle'" -c:a copy "$Output"
+    & ffmpeg -y -i "$InputFile" -vf "subtitles='$srtEscapado':force_style='$forceStyle'" -c:a copy "$OutputFile"
 }
 
 # ---------------------------------------------------------------------------
@@ -267,9 +267,9 @@ $transcricaoSrtFinal = Join-Path $PastaTranscricoes "$nomeBase-final.srt"
 $transcricaoTxtFinal = Join-Path $PastaTranscricoes "$nomeBase-final.txt"
 $final = Join-Path $PastaExports "$nomeBase-pronto.mp4"
 
-Remover-Silencio -Input $videoOriginal -Output $semSilencio
+Remover-Silencio -InputFile $videoOriginal -OutputFile $semSilencio
 
-Gerar-Transcricao -Input $semSilencio -SaidaSrt $transcricaoSrtPreliminar -SaidaTxt $transcricaoTxtPreliminar
+Gerar-Transcricao -InputFile $semSilencio -SaidaSrt $transcricaoSrtPreliminar -SaidaTxt $transcricaoTxtPreliminar
 
 Write-Host "`nTranscrição gerada em:" -ForegroundColor Green
 Write-Host $transcricaoTxtPreliminar
@@ -284,15 +284,15 @@ Add-Content $cortesManuais "# Salve o arquivo e feche o Bloco de Notas para cont
 notepad $cortesManuais
 Read-Host "`nPressione ENTER aqui depois de salvar e fechar o Bloco de Notas"
 
-Remover-Cortes-Manuais -Input $semSilencio -Output $semErros -ArquivoCortes $cortesManuais
+Remover-Cortes-Manuais -InputFile $semSilencio -OutputFile $semErros -ArquivoCortes $cortesManuais
 
-Redimensionar-Vertical -Input $semErros -Output $vertical
+Redimensionar-Vertical -InputFile $semErros -OutputFile $vertical
 
-Gerar-Transcricao -Input $vertical -SaidaSrt $transcricaoSrtFinal -SaidaTxt $transcricaoTxtFinal
+Gerar-Transcricao -InputFile $vertical -SaidaSrt $transcricaoSrtFinal -SaidaTxt $transcricaoTxtFinal
 
 $estilo = Perguntar-EstiloLegenda
 
-Gravar-Legenda -Input $vertical -Srt $transcricaoSrtFinal -Output $final -Estilo $estilo
+Gravar-Legenda -InputFile $vertical -Srt $transcricaoSrtFinal -OutputFile $final -Estilo $estilo
 
 Write-Host "`n✅ Pronto! Vídeo final salvo em:" -ForegroundColor Green
 Write-Host $final -ForegroundColor Green
