@@ -78,7 +78,7 @@ function Remover-Silencio {
     param([string]$Input, [string]$Output)
 
     Write-Host "`nAnalisando silêncios..." -ForegroundColor Cyan
-    $log = & ffmpeg -i "$Input" -af "silencedetect=noise=-30dB:d=0.6" -f null - 2>&1 | Out-String
+    $log = & ffmpeg -i "$Input" -af "silencedetect=noise=-30dB:d=0.6" -f null - -v warning 2>&1 | Out-String -ErrorAction SilentlyContinue
 
     $starts = [regex]::Matches($log, "silence_start:\s*([\d\.]+)") | ForEach-Object { [double]$_.Groups[1].Value }
     $ends = [regex]::Matches($log, "silence_end:\s*([\d\.]+)") | ForEach-Object { [double]$_.Groups[1].Value }
