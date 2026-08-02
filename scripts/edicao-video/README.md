@@ -29,6 +29,15 @@ Abra o PowerShell na pasta do projeto e rode:
 Isso instala FFmpeg, Python e a biblioteca `faster-whisper` (motor de transcrição).
 Feche e reabra o PowerShell depois de rodar esse script pela primeira vez.
 
+**Opcional (recomendado):** Se você quer baixar o modelo de transcrição antecipadamente
+(evita esperar na primeira execução), rode:
+
+```powershell
+python .\scripts\edicao-video\baixar-modelo.py
+```
+
+Isso é especialmente útil se você está em um ambiente cloud ou offline depois.
+
 ## Como usar
 
 1. Coloque o vídeo bruto na sua pasta **Downloads**.
@@ -46,11 +55,12 @@ Feche e reabra o PowerShell depois de rodar esse script pela primeira vez.
 
 ## Limitações conhecidas
 
-- A primeira transcrição de cada sessão baixa o modelo do Whisper (precisa de
-  internet). Nas próximas vezes ele já fica em cache local.
 - Transcrição roda na CPU por padrão — vídeos longos (aula, workshop de 90 min)
   podem levar vários minutos para transcrever. Para acelerar, edite
   `transcrever.py` e troque `"small"` por um modelo maior só se tiver GPU.
+- O modelo Whisper (~1.4 GB) é baixado uma única vez na primeira execução
+  (ou via script `baixar-modelo.py`) e fica em cache local em `~/.cache/whisper`.
+  Nas próximas execuções, a transcrição é instantânea (sem precisar de internet).
 - A detecção de silêncio usa um limiar fixo (-30dB / 0.6s). Se o vídeo tiver
   ruído de fundo alto ou silêncios muito curtos entre frases, pode cortar mais
   ou menos do que o esperado — ajuste os valores em `Remover-Silencio` dentro

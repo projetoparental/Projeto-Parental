@@ -1,5 +1,10 @@
 import sys
+import os
+from pathlib import Path
 from faster_whisper import WhisperModel
+
+cache_dir = Path.home() / ".cache" / "whisper"
+os.environ["HF_HOME"] = str(cache_dir)
 
 
 def formatar_srt_tempo(segundos):
